@@ -44,12 +44,12 @@ impl CanvaDotSession {
         }));
     }
 
-    pub fn id(&self) -> String {
-        self.id.to_string()
-    }
-
     pub fn user(&self) -> &User {
         &self.user
+    }
+
+    pub fn user_mut(&mut self) -> &mut User {
+        &mut self.user
     }
 }
 

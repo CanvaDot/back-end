@@ -55,6 +55,35 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
 
                     match payload {
                         SocketMessage::WriteCell(pos, col) => {
+                            if !session.user().can_consume_credit() {
+                                session.send(CanvaDotSessionMessage::Text(
+                                    SocketMessage::SendError(
+                                        "Cannot consume a token at this moment."
+                                            .into()
+                                    )
+                                        .into()
+                                )).await;
+
+                                continue;
+                            }
+
+                            let consumption = session
+                                .user_mut()
+                                .consume_credit()
+                                .await;
+
+                            if consumption.is_err() {
+                                session.send(CanvaDotSessionMessage::Text(
+                                    SocketMessage::SendError(
+                                        "Cannot consume a token at this moment."
+                                            .into()
+                                    )
+                                        .into()
+                                )).await;
+
+                                continue;
+                            }
+
                             if let Err(err) = process_written_cell(pos, col) {
                                 session.send(CanvaDotSessionMessage::Text(
                                     SocketMessage::SendError(err)
