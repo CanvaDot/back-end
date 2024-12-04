@@ -1,4 +1,4 @@
-use std::{future::{ready, Ready}, ops::Add, time::{SystemTime, SystemTimeError, UNIX_EPOCH}};
+use std::{future::{ready, Ready}, num::ParseIntError, ops::Add, time::{SystemTime, SystemTimeError, UNIX_EPOCH}};
 use actix_web::{cookie::time::Duration, dev::Payload, error::ErrorUnauthorized, Error as ActixError, FromRequest, HttpRequest};
 use bcrypt::{hash, verify, BcryptError, DEFAULT_COST};
 use jsonwebtoken::{decode, encode, errors::Error as JwtError, Header, Validation};
@@ -7,7 +7,7 @@ use sqlx::{prelude::FromRow, query, query_as, Error as SqlxError};
 use time::OffsetDateTime;
 use thiserror::Error;
 use crate::{db, helpers::{database::connection::DbConnectionError, http::jwt::Claims}, jwt_hash};
-
+use base64::{engine::general_purpose::URL_SAFE, DecodeError, Engine as _};
 
 #[derive(Error, Debug)]
 pub enum UserError {
@@ -27,7 +27,16 @@ pub enum UserError {
     SystemTime(#[from] SystemTimeError),
 
     #[error("Cannot consume a token at this time.")]
-    Unconsumable
+    Unconsumable,
+
+    #[error("{0:#}")]
+    Base64(#[from] DecodeError),
+
+    #[error("The specified activation token is not valid.")]
+    InvalidActivationToken,
+
+    #[error("{0:#}")]
+    ParseInt(#[from] ParseIntError)
 }
 
 type UserResult<R> = Result<R, UserError>;
@@ -130,19 +139,29 @@ impl User {
         &self.username
     }
 
-    pub async fn activate(&mut self) -> UserResult<()> {
+    pub fn activation_token(&self) -> String {
+        URL_SAFE.encode(format!("{};{}", self.id, self.email))
+    }
+
+    pub async fn activate(token: &String) -> UserResult<()> {
+        let decoded = URL_SAFE.decode(token)?;
+        let decoded = String::from_utf8_lossy(&decoded);
+        let (id, email) = decoded
+            .split_once(";")
+            .ok_or(UserError::InvalidActivationToken)?;
+
         query!(
             r#"
                 UPDATE users
                 SET activated = true
                 WHERE id = $1
+                AND email = $2
             "#,
-            self.id
+            id.parse::<i32>()?,
+            email
         )
             .execute(db!())
             .await?;
-
-        self.activated = true;
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use std::io::Result as IoResult;
 use actix_web::{App, HttpServer, Scope};
-use routes::{auth::{login::login, register::register, user::user}, socket::session};
+use routes::{auth::{login::login, register::register, user::user, activate::activate}, socket::session};
 use tokio::main;
 
 mod helpers;
@@ -17,6 +17,7 @@ async fn main() -> IoResult<()> {
                     .service(login)
                     .service(register)
                     .service(user)
+                    .service(activate)
             )
     })
         .bind(("127.0.0.1", 8080))?

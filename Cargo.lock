@@ -315,6 +315,7 @@ dependencies = [
  "actix",
  "actix-web",
  "actix-ws",
+ "base64 0.22.1",
  "bcrypt",
  "dotenvy",
  "futures-util",
