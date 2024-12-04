@@ -84,7 +84,7 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
                                 continue;
                             }
 
-                            if let Err(err) = process_written_cell(pos, col) {
+                            if let Err(err) = process_written_cell(session.user(), pos, col) {
                                 session.send(CanvaDotSessionMessage::Text(
                                     SocketMessage::SendError(err)
                                         .into()

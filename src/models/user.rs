@@ -213,6 +213,26 @@ impl User {
     pub fn can_consume_credit(&self) -> bool {
         self.next_free_credit <= OffsetDateTime::now_utc() || self.credits > 0
     }
+
+    pub fn activated(&self) -> bool {
+        self.activated
+    }
+
+    pub fn credits(&self) -> i32 {
+        self.credits
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn email(&self) -> &str {
+        &self.email
+    }
+
+    pub fn id(&self) -> i32 {
+        self.id
+    }
 }
 
 impl FromRequest for User {

@@ -1,3 +1,5 @@
+use crate::models::user::User;
+
 use super::{color::Color, position::Position};
 
 pub struct CanvasSpec<'r> {
@@ -24,7 +26,10 @@ impl<'r> ToString for CanvasSpec<'r> {
 // this will run every time someone paints in a cell.
 // if you return Ok(()) it will continue as intended, otherwise simply send the error with it's
 // specified OP code.
-pub fn process_written_cell(_position: Position, _color: Color) -> Result<(), String> {
+//
+// On Ok it will consume a token,
+// on Err it wont.
+pub fn process_written_cell(_author: &User, _position: Position, _color: Color) -> Result<(), String> {
     Ok(())
 }
 
