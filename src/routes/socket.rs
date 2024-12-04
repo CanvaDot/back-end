@@ -3,7 +3,7 @@ use actix_ws::{handle, AggregatedMessage};
 use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use crate::{helpers::{cells::processes::process_written_cell, http::{socket::{CanvaDotSession, CanvaDotSessionMessage}, socket_messages::SocketMessage}}, models::user::User};
+use crate::{helpers::{cells::processes::{get_canvas_spec, process_written_cell}, http::{socket::{CanvaDotSession, CanvaDotSessionMessage}, socket_messages::SocketMessage}}, models::user::User};
 
 
 lazy_static! {
@@ -30,7 +30,18 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
 
         let mut session = session.clone();
 
-        session.send(CanvaDotSessionMessage::Text(session.id()))
+        let spec = match get_canvas_spec() {
+            Ok(spec) => spec,
+            Err(err) => {
+                session.close(Some(err)).await;
+                return Ok(res);
+            }
+        };
+
+        session.send(CanvaDotSessionMessage::Text(
+            SocketMessage::InitConnection(&session.user(), spec)
+                .into()
+        ))
             .await;
 
         sessions.push(session);

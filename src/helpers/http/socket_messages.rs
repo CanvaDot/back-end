@@ -1,4 +1,4 @@
-use crate::{helpers::cells::{color::Color, position::Position}, models::user::User};
+use crate::{helpers::cells::{color::Color, position::Position, processes::CanvasSpec}, models::user::User};
 
 macro_rules! or_error {
     (r, $e:expr) => {
@@ -20,17 +20,19 @@ macro_rules! or_error {
     };
 }
 
-pub enum SocketMessage<'u> {
+pub enum SocketMessage<'u, 'c> {
     WriteCell(Position, Color),
     MoveCursor(Position),
 
     WroteCell(&'u User, Position, Color),
     MovedCursor(&'u User, Position),
 
-    SendError(String)
+    SendError(String),
+
+    InitConnection(&'u User, CanvasSpec<'c>)
 }
 
-impl<'u> SocketMessage<'u> {
+impl<'u, 'c> SocketMessage<'u, 'c> {
     pub fn to_sender(self, user: &'u User) -> Self {
         match self {
             Self::WriteCell(position, color) =>
@@ -47,7 +49,7 @@ impl<'u> SocketMessage<'u> {
     }
 }
 
-impl<'u> From<String> for SocketMessage<'u> {
+impl<'u, 'c> From<String> for SocketMessage<'u, 'c> {
     fn from(value: String) -> Self {
         let (op, params) = or_error!(
             o,
@@ -83,7 +85,7 @@ impl<'u> From<String> for SocketMessage<'u> {
     }
 }
 
-impl<'u> Into<String> for SocketMessage<'u> {
+impl<'u, 'c> Into<String> for SocketMessage<'u, 'c> {
     fn into(self) -> String {
         match self {
             Self::WriteCell(pos, col)
@@ -99,7 +101,10 @@ impl<'u> Into<String> for SocketMessage<'u> {
                 => format!("4;{},{}", user.name(), pos.to_string()),
 
             Self::SendError(err)
-                => format!("5;{err}")
+                => format!("5;{err}"),
+
+            Self::InitConnection(user, spec)
+                => format!("6;{},{}", user.name(), spec.to_string())
         }
     }
 }

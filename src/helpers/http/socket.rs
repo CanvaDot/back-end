@@ -1,5 +1,5 @@
 use actix_web::web::Bytes;
-use actix_ws::Session;
+use actix_ws::{CloseCode, CloseReason, Session};
 use uuid::Uuid;
 use crate::models::user::User;
 
@@ -33,8 +33,15 @@ impl CanvaDotSession {
 
             CanvaDotSessionMessage::Pong(ping) => {
                 let _ = self.session.ping(&ping).await;
-            }
+            },
         }
+    }
+
+    pub async fn close<'i>(self, message: Option<String>) {
+        let _ = self.session.close(Some(CloseReason {
+            code: CloseCode::Error,
+            description: message
+        }));
     }
 
     pub fn id(&self) -> String {
