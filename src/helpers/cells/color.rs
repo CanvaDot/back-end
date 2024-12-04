@@ -60,9 +60,9 @@ impl TryFrom<String> for Color {
                 }
 
                 Ok(Self::new(
-                    split[1].parse()?,
-                    split[2].parse()?,
-                    split[3].parse()?
+                    split[1].trim().parse()?,
+                    split[2].trim().parse()?,
+                    split[3].trim().parse()?
                 ))
             },
 
@@ -71,7 +71,7 @@ impl TryFrom<String> for Color {
                     return Err(ColorError::InvalidValueAmount);
                 }
 
-                Ok(Self::from(i32::from_str_radix(split[1], 16)?))
+                Ok(Self::from(i32::from_str_radix(split[1].trim(), 16)?))
             },
 
             _ => {

@@ -39,8 +39,8 @@ impl TryFrom<String> for Position {
         }
 
         Ok(Self::new(
-            split[0].parse()?,
-            split[1].parse()?
+            split[0].trim().parse()?,
+            split[1].trim().parse()?
         ))
     }
 }

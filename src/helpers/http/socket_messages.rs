@@ -59,16 +59,19 @@ impl<'u, 'c> From<String> for SocketMessage<'u, 'c> {
 
         match or_error!(r, op.parse::<i32>()) {
             1 => {
-                let params = params.splitn(2, ',')
+                let params = params.splitn(3, ',')
                     .collect::<Vec<_>>();
 
-                if params.len() != 2 {
+                if params.len() != 3 {
                     return Self::SendError("Invalid parameter length".into());
                 }
 
+                let left = format!("{},{}", params[0], params[1]);
+                let right = params[2].to_string();
+
                 Self::WriteCell(
-                    or_error!(r, params[0].to_string().try_into()),
-                    or_error!(r, params[1].to_string().try_into())
+                    or_error!(r, left.try_into()),
+                    or_error!(r, right.try_into())
                 )
             },
 
