@@ -29,6 +29,18 @@ impl Color {
             b
         }
     }
+
+    pub fn r(&self) -> u8 {
+        self.r
+    }
+
+    pub fn g(&self) -> u8 {
+        self.g
+    }
+
+    pub fn b(&self) -> u8 {
+        self.b
+    }
 }
 
 impl From<i32> for Color {
