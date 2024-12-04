@@ -1,18 +1,18 @@
 use actix_web::web::Bytes;
 use actix_ws::{CloseCode, CloseReason, Session};
 use uuid::Uuid;
-use crate::models::user::User;
+use crate::models::user::MaybeUser;
 
 
 #[derive(Clone)]
 pub struct WsSession {
     id: Uuid,
     session: Session,
-    user: User
+    user: MaybeUser
 }
 
 impl WsSession {
-    pub fn new(session: Session, user: User) -> Self {
+    pub fn new(session: Session, user: MaybeUser) -> Self {
         Self {
             id: Uuid::new_v4(),
             session,
@@ -41,12 +41,8 @@ impl WsSession {
             .is_ok()
     }
 
-    pub fn user(&self) -> User {
+    pub fn user(&self) -> MaybeUser {
         self.user.clone()
-    }
-
-    pub fn user_mut(&mut self) -> &mut User {
-        &mut self.user
     }
 }
 

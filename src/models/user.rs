@@ -52,6 +52,12 @@ pub struct User {
     activated: bool
 }
 
+#[derive(Clone)]
+pub enum MaybeUser {
+    Authorized(User),
+    Unauthorized
+}
+
 impl User {
     pub async fn exists(email: &String, username: &String) -> UserResult<bool> {
         Ok(query!(
@@ -235,13 +241,11 @@ impl User {
     }
 }
 
-impl FromRequest for User {
+impl TryFrom<&HttpRequest> for User {
     type Error = ActixError;
 
-    type Future = Ready<Result<Self, Self::Error>>;
-
-    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        req.cookie("Session")
+    fn try_from(value: &HttpRequest) -> Result<Self, Self::Error> {
+        value.cookie("Session")
             .and_then(|cookie| Self::from_jwt(
                     cookie
                         .value()
@@ -250,8 +254,34 @@ impl FromRequest for User {
                     .ok()
             )
             .map_or(
-                ready(Err(ErrorUnauthorized("Provide Session cookie for this endpoint."))),
-                |res| ready(Ok(res))
+                Err(ErrorUnauthorized("Provide Session cookie for this endpoint.")),
+                |res| Ok(res)
             )
+
+    }
+}
+
+impl FromRequest for User {
+    type Error = ActixError;
+
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        ready(req.try_into())
+    }
+}
+
+impl FromRequest for MaybeUser {
+    type Error = ActixError;
+
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        ready(Ok(
+            match req.try_into() {
+                Ok(user) => Self::Authorized(user),
+                Err(_) => Self::Unauthorized
+            }
+        ))
     }
 }

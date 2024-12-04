@@ -3,7 +3,7 @@ use actix_ws::{handle, AggregatedMessage};
 use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use crate::{helpers::{cells::processes::{get_canvas_spec, process_written_cell}, http::{socket_messages::SocketMessage, socket_session::WsSession}}, models::user::User};
+use crate::{helpers::{cells::processes::{get_canvas_spec, process_written_cell}, http::{socket_messages::SocketMessage, socket_session::WsSession}}, models::user::MaybeUser};
 
 
 lazy_static! {
@@ -22,7 +22,7 @@ macro_rules! send_text {
 }
 
 #[get("/session")]
-pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<HttpResponse, Error> {
+pub async fn session(req: HttpRequest, stream: Payload, user: MaybeUser) -> Result<HttpResponse, Error> {
     let (res, session, stream) = handle(&req, stream)?;
 
     let mut stream = stream
@@ -64,11 +64,22 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
         while let Some(msg) = stream.next().await {
             match msg {
                 Ok(AggregatedMessage::Text(text)) => {
+                    let MaybeUser::Authorized(mut user) = session.user()
+                    else {
+                        send_text!(
+                            session,
+                            SocketMessage::SendError("Unauthorized.".into())
+                        );
+
+                        continue;
+                    };
+
                     let payload = SocketMessage::from(text.to_string());
 
                     match payload {
                         SocketMessage::WriteCell(pos, col) => {
-                            if !session.user().can_consume_credit() {
+
+                            if !user.can_consume_credit() {
                                 send_text!(
                                     session,
                                     SocketMessage::SendError(
@@ -80,8 +91,7 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
                                 continue;
                             }
 
-                            let consumption = session
-                                .user_mut()
+                            let consumption = user
                                 .consume_credit()
                                 .await;
 
@@ -96,7 +106,7 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
                                 continue;
                             }
 
-                            if let Err(err) = process_written_cell(&session.user(), pos, col) {
+                            if let Err(err) = process_written_cell(&user, pos, col) {
                                 send_text!(session, SocketMessage::SendError(err));
 
                                 continue;
@@ -112,7 +122,6 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
                         _ => {}
                     }
 
-                    let user = session.user();
                     let sender = payload.to_sender(&user);
 
                     let sender: String = match sender {

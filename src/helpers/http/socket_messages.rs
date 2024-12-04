@@ -1,4 +1,4 @@
-use crate::{helpers::cells::{color::Color, position::Position, processes::CanvasSpec}, models::user::User};
+use crate::{helpers::cells::{color::Color, position::Position, processes::CanvasSpec}, models::user::{MaybeUser, User}};
 
 macro_rules! or_error {
     (r, $e:expr) => {
@@ -29,7 +29,7 @@ pub enum SocketMessage<'u, 'c> {
 
     SendError(String),
 
-    InitConnection(&'u User, CanvasSpec<'c>)
+    InitConnection(&'u MaybeUser, CanvasSpec<'c>)
 }
 
 impl<'u, 'c> SocketMessage<'u, 'c> {
@@ -107,7 +107,14 @@ impl<'u, 'c> Into<String> for SocketMessage<'u, 'c> {
                 => format!("5;{err}"),
 
             Self::InitConnection(user, spec)
-                => format!("6;{},{}", user.name(), spec.to_string())
+                => format!(
+                    "6;{},{}",
+                    match user {
+                        MaybeUser::Authorized(user) => user.name(),
+                        MaybeUser::Unauthorized => "null"
+                    },
+                    spec.to_string()
+                )
         }
     }
 }
