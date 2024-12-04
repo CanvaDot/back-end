@@ -3,11 +3,22 @@ use actix_ws::{handle, AggregatedMessage};
 use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use crate::{helpers::{cells::processes::{get_canvas_spec, process_written_cell}, http::{socket::{CanvaDotSession, CanvaDotSessionMessage}, socket_messages::SocketMessage}}, models::user::User};
+use crate::{helpers::{cells::processes::{get_canvas_spec, process_written_cell}, http::{socket_messages::SocketMessage, socket_session::WsSession}}, models::user::User};
 
 
 lazy_static! {
-    static ref SESSIONS: Mutex<Vec<CanvaDotSession>> = Mutex::new(Vec::new());
+    static ref SESSIONS: Mutex<Vec<WsSession>> = Mutex::new(Vec::new());
+}
+
+macro_rules! send_text {
+    ($session:expr, $value:expr) => {
+        if !$session.text($value).await {
+            SESSIONS
+                .lock()
+                .await
+                .retain(|s| s != &$session);
+        }
+    };
 }
 
 #[get("/session")]
@@ -18,7 +29,7 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
         .aggregate_continuations()
         .max_continuation_size(2_usize.pow(20));
 
-    let mut session = CanvaDotSession::new(
+    let mut session = WsSession::new(
         session.clone(),
         user
     );
@@ -30,21 +41,23 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
 
         let mut session = session.clone();
 
-        let spec = match get_canvas_spec() {
-            Ok(spec) => spec,
-            Err(err) => {
-                session.close(Some(err)).await;
-                return Ok(res);
-            }
-        };
-
-        session.send(CanvaDotSessionMessage::Text(
-            SocketMessage::InitConnection(&session.user(), spec)
-                .into()
-        ))
+        let sent_init = session.text(
+            SocketMessage::InitConnection(
+                &session.user(),
+                match get_canvas_spec() {
+                    Ok(spec) => spec,
+                    Err(err) => {
+                        session.close(Some(err)).await;
+                        return Ok(res);
+                    }
+                }
+            )
+        )
             .await;
 
-        sessions.push(session);
+        if sent_init {
+            sessions.push(session);
+        }
     }
 
     spawn(async move {
@@ -56,13 +69,13 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
                     match payload {
                         SocketMessage::WriteCell(pos, col) => {
                             if !session.user().can_consume_credit() {
-                                session.send(CanvaDotSessionMessage::Text(
+                                send_text!(
+                                    session,
                                     SocketMessage::SendError(
                                         "Cannot consume a token at this moment."
                                             .into()
                                     )
-                                        .into()
-                                )).await;
+                                );
 
                                 continue;
                             }
@@ -73,70 +86,60 @@ pub async fn session(req: HttpRequest, stream: Payload, user: User) -> Result<Ht
                                 .await;
 
                             if consumption.is_err() {
-                                session.send(CanvaDotSessionMessage::Text(
+                                send_text!(
+                                    session,
                                     SocketMessage::SendError(
-                                        "Cannot consume a token at this moment."
-                                            .into()
+                                        "Cannot consume a token at this moment.".into()
                                     )
-                                        .into()
-                                )).await;
+                                );
 
                                 continue;
                             }
 
-                            if let Err(err) = process_written_cell(session.user(), pos, col) {
-                                session.send(CanvaDotSessionMessage::Text(
-                                    SocketMessage::SendError(err)
-                                        .into()
-                                ))
-                                    .await;
+                            if let Err(err) = process_written_cell(&session.user(), pos, col) {
+                                send_text!(session, SocketMessage::SendError(err));
+
                                 continue;
                             }
                         },
 
                         SocketMessage::SendError(_) => {
-                            session.send(CanvaDotSessionMessage::Text(
-                                payload.into()
-                            ))
-                                .await;
+                            send_text!(session, payload);
+
                             continue;
                         },
 
                         _ => {}
                     }
 
-                    let sender = payload.to_sender(session.user());
+                    let user = session.user();
+                    let sender = payload.to_sender(&user);
 
                     let sender: String = match sender {
                         SocketMessage::SendError(_) => {
-                            session.send(CanvaDotSessionMessage::Text(
-                                sender.into()
-                            ))
-                                .await;
+                            send_text!(session, sender);
+
                             continue;
                         },
                         _ => sender.into()
                     };
 
                     for session in SESSIONS.lock().await.iter_mut() {
-                        session.send(CanvaDotSessionMessage::Text(sender.clone()))
-                            .await;
+                        send_text!(*session, &sender);
                     }
                 },
 
                 Ok(AggregatedMessage::Ping(ping)) => {
-                    session.send(CanvaDotSessionMessage::Pong(&ping))
+                    session.pong(&ping)
                         .await;
                 },
 
                 Err(_) | Ok(AggregatedMessage::Close(_)) => {
-                    let mut sessions = SESSIONS
+                    SESSIONS
                         .lock()
-                        .await;
+                        .await
+                        .retain(|s| s == &session);
 
-                    println!("Disconnected");
-
-                    sessions.retain(|s| s == &session);
                     break;
                 }
 
