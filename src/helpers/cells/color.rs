@@ -43,6 +43,14 @@ impl Color {
     }
 }
 
+impl Into<i32> for Color {
+    fn into(self) -> i32 {
+        ((self.r as i32) << 16)
+            | ((self.g as i32) << 8)
+            | (self.b as i32)
+    }
+}
+
 impl From<i32> for Color {
     fn from(value: i32) -> Self {
         Self {
