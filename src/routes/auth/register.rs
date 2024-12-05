@@ -14,6 +14,11 @@ struct RegisterParams {
 pub async fn register(params: Form<RegisterParams>) -> impl Responder {
     let RegisterParams { username, email, password } = params.into_inner();
 
+    if username.chars().any(|c| !c.is_alphanumeric() || c.is_whitespace()) {
+        return HttpResponse::BadRequest()
+            .body("Username must only contain readable characters")
+    }
+
     if grv!(User::exists(&username, &email).await) {
         return HttpResponse::BadRequest()
             .body("This username or email already exists");
