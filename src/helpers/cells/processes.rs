@@ -1,3 +1,5 @@
+use std::u8;
+
 use crate::models::user::User;
 
 use super::{color::Color, position::Position};
@@ -5,7 +7,7 @@ use super::{color::Color, position::Position};
 pub struct CanvasSpec<'r> {
     columns: i32,
     rows: i32,
-    cells: &'r [u8]
+    pub cells: &'r [u8]
 }
 
 impl<'r> ToString for CanvasSpec<'r> {
@@ -37,8 +39,8 @@ pub fn process_written_cell(_author: &User, _position: Position, _color: Color) 
 // if you return Ok(_) it will send the canvas spec, otherwise simply close the connection.
 pub fn get_canvas_spec<'r>() -> Result<CanvasSpec<'r>, String> {
     Ok(CanvasSpec {
-        columns: 0,
-        rows: 0,
-        cells: &[0; 0]
+        columns: 1920,
+        rows: 1080,
+        cells: &[0; 6_220_800]
     })
 }
