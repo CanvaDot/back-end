@@ -5,12 +5,13 @@ use crate::{grv, models::user::User};
 
 #[derive(Deserialize)]
 struct ActivateParams {
-    t: String
+    #[serde(rename = "t")]
+    token: String
 }
 
 #[post("/activate")]
 pub async fn activate(params: Query<ActivateParams>) -> impl Responder {
-    grv!(User::activate(&params.t).await);
+    grv!(User::activate(&params.token).await);
 
     HttpResponse::Ok()
         .finish()
