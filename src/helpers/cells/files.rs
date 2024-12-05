@@ -1,7 +1,7 @@
 use core::str;
 use std::{
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    io::{BufRead, BufReader, BufWriter, LineWriter, Read, Seek, SeekFrom, Write},
     os::unix::fs::FileExt,
     path::Path,
 };
@@ -62,12 +62,26 @@ fn open_file_users() -> Result<File, String> {
     }
 }
 
-fn insert_username(user: &str, position: Position, mut file: &File) /*-> Result<usize, String>*/
+fn insert_username(user: &str, position: Position, file: &File) /*-> Result<usize, String>*/
 {
-    let mut reader = BufReader::new(file);
-    let (i, line) = reader.lines().enumerate().find(|(i, _)| *i == (position.y() * 1920 + position.x()) as usize).unwrap();
-    file.seek(SeekFrom::Start((position.y() * 1920 + position.x()) as u64));
-    file.write(b"chiwa");
+    let reader = BufReader::new(file);
+    let lines = reader.lines();
+    let mut linewriter = BufWriter::new(file);
+
+    for (i, line) in lines.enumerate() {
+        let Ok(mut line) = line else {
+            break;
+        };
+
+        if i == (position.y() * 1920 + position.x()) as usize {
+            println!("wdwd");
+            user.to_string().push('\n');
+            linewriter.write(user.as_bytes());
+        } else {
+            line.push('\n');
+            linewriter.write(line.as_bytes());
+        }
+    }
 }
 
 fn write_pixel(position: Position, color: Color, file: &File) -> Result<usize, String> {
