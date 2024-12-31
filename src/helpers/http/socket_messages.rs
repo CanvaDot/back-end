@@ -20,7 +20,7 @@ macro_rules! or_error {
     };
 }
 
-pub enum SocketMessage<'u, 'c> {
+pub enum SocketMessage<'u> {
     WriteCell(Position, Color),
     MoveCursor(Position),
 
@@ -29,10 +29,10 @@ pub enum SocketMessage<'u, 'c> {
 
     SendError(String),
 
-    InitConnection(&'u MaybeUser, CanvasSpec<'c>)
+    InitConnection(&'u MaybeUser, CanvasSpec)
 }
 
-impl<'u, 'c> SocketMessage<'u, 'c> {
+impl<'u> SocketMessage<'u> {
     pub fn to_sender(self, user: &'u User) -> Self {
         match self {
             Self::WriteCell(position, color) =>
@@ -49,7 +49,7 @@ impl<'u, 'c> SocketMessage<'u, 'c> {
     }
 }
 
-impl<'u, 'c> From<String> for SocketMessage<'u, 'c> {
+impl<'u> From<String> for SocketMessage<'u> {
     fn from(value: String) -> Self {
         let (op, params) = or_error!(
             o,
@@ -88,7 +88,7 @@ impl<'u, 'c> From<String> for SocketMessage<'u, 'c> {
     }
 }
 
-impl<'u, 'c> Into<String> for SocketMessage<'u, 'c> {
+impl<'u> Into<String> for SocketMessage<'u> {
     fn into(self) -> String {
         match self {
             Self::WriteCell(pos, col)

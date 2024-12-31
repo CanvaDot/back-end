@@ -220,22 +220,27 @@ impl User {
         self.next_free_credit <= OffsetDateTime::now_utc() || self.credits > 0
     }
 
+    #[allow(unused)]
     pub fn activated(&self) -> bool {
         self.activated
     }
 
+    #[allow(unused)]
     pub fn credits(&self) -> i32 {
         self.credits
     }
 
+    #[allow(unused)]
     pub fn username(&self) -> &str {
         &self.username
     }
 
+    #[allow(unused)]
     pub fn email(&self) -> &str {
         &self.email
     }
 
+    #[allow(unused)]
     pub fn id(&self) -> i32 {
         self.id
     }

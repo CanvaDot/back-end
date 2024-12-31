@@ -1,7 +1,6 @@
 use std::num::ParseIntError;
 use thiserror::Error;
 
-
 #[derive(Error, Debug)]
 pub enum ColorError {
     #[error("There are not enough values in this raw split comma string for the specified format.")]
